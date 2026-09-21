@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
 import { Chess } from "chess.js"
 import { Chessboard } from "react-chessboard"
-import { createEngine } from "./engine"
+import { createEngine } from "./engine/engine"
+import { createEngineStrategy } from "./engine/engineStrategy"
 
 function randomColor() {
   return Math.random() < 0.5 ? "w" : "b"
@@ -15,9 +16,12 @@ function createGame(startingFen = new Chess().fen()) {
   const playerColor = randomColor()
   const engineColor = oppositeColor(playerColor)
 
+  const strategy = createEngineStrategy()
+
   const engine = createEngine({
     startingFen,
-    color: engineColor
+    color: engineColor,
+    strategy
   })
 
   return {
@@ -47,7 +51,6 @@ function getGameResult(game) {
 
   if (game.isCheckmate()) {
     const winner = game.turn() === "w" ? "Black" : "White"
-
     return `${winner} wins by checkmate`
   }
 
@@ -76,22 +79,14 @@ function getGameResult(game) {
 
 export default function App() {
   const [session, setSession] = useState(createGame)
-
   const [viewIndex, setViewIndex] = useState(0)
-
-  const [selectedSquare, setSelectedSquare] =
-    useState(null)
-
-  const [pendingPromotion, setPendingPromotion] =
-    useState(null)
-
-  const [pendingEngineMove, setPendingEngineMove] =
-    useState(null)
+  const [selectedSquare, setSelectedSquare] = useState(null)
+  const [pendingPromotion, setPendingPromotion] = useState(null)
+  const [pendingEngineMove, setPendingEngineMove] = useState(null)
 
   const liveIndex = session.positions.length - 1
   const visibleFen = session.positions[viewIndex]
-  const isViewingLivePosition =
-    viewIndex === liveIndex
+  const isViewingLivePosition = viewIndex === liveIndex
 
   const liveGame = rebuildGame(
     session.startingFen,
@@ -169,11 +164,7 @@ export default function App() {
     session.startingFen
   ])
 
-  function commitPlayerMove(
-    from,
-    to,
-    promotion
-  ) {
+  function commitPlayerMove(from, to, promotion) {
     if (!isViewingLivePosition) {
       return false
     }
@@ -198,9 +189,7 @@ export default function App() {
     const playerMove = {
       from,
       to,
-      ...(promotion
-        ? { promotion }
-        : {})
+      ...(promotion ? { promotion } : {})
     }
 
     try {
@@ -231,9 +220,7 @@ export default function App() {
 
     if (!game.isGameOver()) {
       const engineMove =
-        session.engine.respondToMove(
-          playerMove
-        )
+        session.engine.respondToMove(playerMove)
 
       if (engineMove) {
         setPendingEngineMove(engineMove)
@@ -285,10 +272,9 @@ export default function App() {
       return "illegal"
     }
 
-    const isPromotion =
-      matchingMoves.some(
-        (move) => move.promotion
-      )
+    const isPromotion = matchingMoves.some(
+      (move) => move.promotion
+    )
 
     if (isPromotion) {
       setPendingPromotion({
@@ -299,22 +285,13 @@ export default function App() {
       return "promotion"
     }
 
-    const moved = commitPlayerMove(
-      from,
-      to
-    )
-
-    return moved
+    return commitPlayerMove(from, to)
       ? "moved"
       : "illegal"
   }
 
   function handleSquareClick(square) {
-    if (pendingPromotion) {
-      return
-    }
-
-    if (pendingEngineMove) {
+    if (pendingPromotion || pendingEngineMove) {
       return
     }
 
@@ -343,11 +320,10 @@ export default function App() {
     const clickedPiece = game.get(square)
 
     if (selectedSquare) {
-      const moveResult =
-        requestPlayerMove(
-          selectedSquare,
-          square
-        )
+      const moveResult = requestPlayerMove(
+        selectedSquare,
+        square
+      )
 
       if (moveResult !== "illegal") {
         return
@@ -355,8 +331,7 @@ export default function App() {
     }
 
     if (
-      clickedPiece?.color ===
-      session.playerColor
+      clickedPiece?.color === session.playerColor
     ) {
       setSelectedSquare(square)
     } else {
@@ -429,16 +404,10 @@ export default function App() {
       }
     }
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    )
+    window.addEventListener("keydown", handleKeyDown)
 
     return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      )
+      window.removeEventListener("keydown", handleKeyDown)
     }
   }, [
     pendingPromotion,
@@ -446,15 +415,11 @@ export default function App() {
   ])
 
   function getSquareStyles() {
-    if (!selectedSquare) {
-      return {}
-    }
-
-    if (!isViewingLivePosition) {
-      return {}
-    }
-
-    if (pendingEngineMove) {
+    if (
+      !selectedSquare ||
+      !isViewingLivePosition ||
+      pendingEngineMove
+    ) {
       return {}
     }
 
@@ -470,14 +435,12 @@ export default function App() {
 
     const styles = {
       [selectedSquare]: {
-        background:
-          "rgba(255, 215, 0, 0.45)"
+        background: "rgba(255, 215, 0, 0.45)"
       }
     }
 
     for (const move of legalMoves) {
-      const targetPiece =
-        game.get(move.to)
+      const targetPiece = game.get(move.to)
 
       styles[move.to] = targetPiece
         ? {
@@ -505,11 +468,10 @@ export default function App() {
       sourceSquare,
       targetSquare
     }) => {
-      const moveResult =
-        requestPlayerMove(
-          sourceSquare,
-          targetSquare
-        )
+      const moveResult = requestPlayerMove(
+        sourceSquare,
+        targetSquare
+      )
 
       return moveResult === "moved"
     },
@@ -518,14 +480,12 @@ export default function App() {
       handleSquareClick(square)
     },
 
-    squareStyles:
-      getSquareStyles(),
+    squareStyles: getSquareStyles(),
 
     allowDragging:
       isViewingLivePosition &&
       !liveGame.isGameOver() &&
-      liveGame.turn() ===
-        session.playerColor &&
+      liveGame.turn() === session.playerColor &&
       !pendingPromotion &&
       !pendingEngineMove,
 
@@ -551,9 +511,7 @@ export default function App() {
     <main className="app">
       <div className="game">
         <div className="board">
-          <Chessboard
-            options={boardOptions}
-          />
+          <Chessboard options={boardOptions} />
 
           {pendingPromotion && (
             <div
@@ -573,27 +531,21 @@ export default function App() {
                   ["r", "Rook"],
                   ["b", "Bishop"],
                   ["n", "Knight"]
-                ].map(
-                  ([piece, label]) => (
-                    <button
-                      key={piece}
-                      aria-label={label}
-                      onClick={() =>
-                        commitPlayerMove(
-                          pendingPromotion.from,
-                          pendingPromotion.to,
-                          piece
-                        )
-                      }
-                    >
-                      {
-                        promotionPieces[
-                          piece
-                        ]
-                      }
-                    </button>
-                  )
-                )}
+                ].map(([piece, label]) => (
+                  <button
+                    key={piece}
+                    aria-label={label}
+                    onClick={() =>
+                      commitPlayerMove(
+                        pendingPromotion.from,
+                        pendingPromotion.to,
+                        piece
+                      )
+                    }
+                  >
+                    {promotionPieces[piece]}
+                  </button>
+                ))}
               </div>
             </div>
           )}
