@@ -6,6 +6,14 @@ function toMove(move) {
   }
 }
 
+const pieceValue = {
+  p: 1,
+  n: 3,
+  b: 3,
+  r: 5,
+  q: 9
+}
+
 function findForcedMove(moves) {
   if (moves.length !== 1) {
     return null
@@ -61,13 +69,6 @@ function findBestHangingCapture(game, moves) {
 }
 
 function findBestCapture(moves) {
-  const pieceValue = {
-    p: 1,
-    n: 3,
-    b: 3,
-    r: 5,
-    q: 9
-  }
 
   const captures = moves.filter(
     (move) =>
@@ -97,6 +98,81 @@ function findBestCapture(moves) {
       Math.floor(Math.random() * bestCaptures.length)
     ]
   )
+}
+
+function findDontHangMaterialMove(game, moves) {
+
+  function getCaptureLoss(game, capture) {
+    const capturedValue = pieceValue[capture.captured]
+    const attackerValue =
+      pieceValue[capture.promotion ?? capture.piece]
+
+    game.move(capture)
+
+    const canRecapture = game
+      .moves({ verbose: true })
+      .some(
+        (move) =>
+          move.to === capture.to &&
+          move.captured
+      )
+
+    game.undo()
+
+    if (!canRecapture) {
+      return capturedValue
+    }
+
+    return Math.max(
+      0,
+      capturedValue - attackerValue
+    )
+  }
+
+  function getWorstMaterialLoss(game, move) {
+    game.move(move)
+
+    const opponentCaptures = game
+      .moves({ verbose: true })
+      .filter((move) => move.captured)
+
+    let worstLoss = 0
+
+    for (const capture of opponentCaptures) {
+      worstLoss = Math.max(
+        worstLoss,
+        getCaptureLoss(game, capture)
+      )
+    }
+
+    game.undo()
+
+    return worstLoss
+  }
+
+  if (moves.length === 0) {
+    return null
+  }
+
+  const evaluatedMoves = moves.map((move) => ({
+    move,
+    loss: getWorstMaterialLoss(game, move)
+  }))
+
+  const minimumLoss = Math.min(
+    ...evaluatedMoves.map(({ loss }) => loss)
+  )
+
+  const bestMoves = evaluatedMoves.filter(
+    ({ loss }) => loss === minimumLoss
+  )
+
+  const selected =
+    bestMoves[
+      Math.floor(Math.random() * bestMoves.length)
+    ]
+
+  return toMove(selected.move)
 }
 
 function findRandomMove(moves) {
@@ -131,6 +207,10 @@ export function createEngineStrategy() {
     // Capture if the material trade is not bad
     const captureMove = findBestCapture(moves)
     if (captureMove) return captureMove
+
+    // Play a move that avoids losing material from having a piece captured
+    const safeMove = findDontHangMaterialMove(game, moves)
+    if (safeMove) return safeMove
 
     // Just play a move
     return findRandomMove(moves)
