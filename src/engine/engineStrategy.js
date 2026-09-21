@@ -65,10 +65,6 @@ function getMaterialScore(game, color) {
 }
 
 function filterBestMaterialMoves(game, moves) {
-  if (moves.length === 0) {
-    return []
-  }
-
   const color = game.turn()
 
   const evaluatedMoves = moves.map((move) => {
