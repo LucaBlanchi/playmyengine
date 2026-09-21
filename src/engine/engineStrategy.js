@@ -36,60 +36,6 @@ function findMateInOne(game, moves) {
   return null
 }
 
-function findBestCapture(game, moves) {
-  const captures = moves.filter((move) => move.captured)
-
-  const evaluatedCaptures = captures
-    .map((move) => {
-      const capturedValue = pieceValue[move.captured]
-      const capturingValue =
-        pieceValue[move.promotion ?? move.piece]
-
-      game.move(move)
-
-      const canBeRecaptured = game
-        .moves({ verbose: true })
-        .some(
-          (reply) =>
-            reply.captured &&
-            reply.to === move.to
-        )
-
-      game.undo()
-
-      const materialGain = canBeRecaptured
-        ? capturedValue - capturingValue
-        : capturedValue
-
-      return {
-        move,
-        materialGain
-      }
-    })
-    .filter(({ materialGain }) => materialGain >= 0)
-
-  if (evaluatedCaptures.length === 0) {
-    return null
-  }
-
-  const bestGain = Math.max(
-    ...evaluatedCaptures.map(
-      ({ materialGain }) => materialGain
-    )
-  )
-
-  const bestCaptures = evaluatedCaptures.filter(
-    ({ materialGain }) => materialGain === bestGain
-  )
-
-  const selected =
-    bestCaptures[
-      Math.floor(Math.random() * bestCaptures.length)
-    ]
-
-  return toMove(selected.move)
-}
-
 function filterMovesAvoidingMateInOne(game, moves) {
   return moves.filter((move) => {
     game.move(move)
@@ -112,70 +58,64 @@ function filterMovesAvoidingMateInOne(game, moves) {
   })
 }
 
-function findMovesThatDontHangMaterial(game, moves) {
-  function getCaptureLoss(game, capture) {
-    const capturedValue = pieceValue[capture.captured]
-    const attackerValue =
-      pieceValue[capture.promotion ?? capture.piece]
+function getMaterialScore(game, color) {
+  return game
+    .board()
+    .flat()
+    .filter(Boolean)
+    .reduce((score, piece) => {
+      const value = pieceValue[piece.type] ?? 0
 
-    game.move(capture)
+      return piece.color === color
+        ? score + value
+        : score - value
+    }, 0)
+}
 
-    const canRecapture = game
-      .moves({ verbose: true })
-      .some(
-        (move) =>
-          move.to === capture.to &&
-          move.captured
-      )
-
-    game.undo()
-
-    if (!canRecapture) {
-      return capturedValue
-    }
-
-    return Math.max(
-      0,
-      capturedValue - attackerValue
-    )
-  }
-
-  function getWorstMaterialLoss(game, move) {
-    game.move(move)
-
-    const opponentCaptures = game
-      .moves({ verbose: true })
-      .filter((move) => move.captured)
-
-    let worstLoss = 0
-
-    for (const capture of opponentCaptures) {
-      worstLoss = Math.max(
-        worstLoss,
-        getCaptureLoss(game, capture)
-      )
-    }
-
-    game.undo()
-
-    return worstLoss
-  }
-
+function findBestMaterialMove(game, moves) {
   if (moves.length === 0) {
     return null
   }
 
-  const evaluatedMoves = moves.map((move) => ({
-    move,
-    loss: getWorstMaterialLoss(game, move)
-  }))
+  const color = game.turn()
 
-  const minimumLoss = Math.min(
-    ...evaluatedMoves.map(({ loss }) => loss)
+  const evaluatedMoves = moves.map((move) => {
+    game.move(move)
+
+    const opponentMoves = game.moves({ verbose: true })
+
+    let worstScore
+
+    if (opponentMoves.length === 0) {
+      worstScore = getMaterialScore(game, color)
+    } else {
+      worstScore = Infinity
+
+      for (const opponentMove of opponentMoves) {
+        game.move(opponentMove)
+
+        const score = getMaterialScore(game, color)
+
+        game.undo()
+
+        worstScore = Math.min(worstScore, score)
+      }
+    }
+
+    game.undo()
+
+    return {
+      move,
+      score: worstScore
+    }
+  })
+
+  const bestScore = Math.max(
+    ...evaluatedMoves.map(({ score }) => score)
   )
 
   const bestMoves = evaluatedMoves.filter(
-    ({ loss }) => loss === minimumLoss
+    ({ score }) => score === bestScore
   )
 
   const selected =
@@ -213,18 +153,14 @@ export function createEngineStrategy() {
 
     // Avoid moves that hang mate in 1
     const safeMoves = filterMovesAvoidingMateInOne(game, moves)
-    if (safeMoves.length === 0) {
-      return findRandomMove(moves)
+
+    if (safeMoves.length > 0) {
+      moves = safeMoves
     }
-    moves = safeMoves
 
-    // Capture if the material trade is not bad
-    const captureMove = findBestCapture(game, moves)
-    if (captureMove) return captureMove
-
-    // Play a move that avoids losing material from having a piece captured
-    const safeMove = findMovesThatDontHangMaterial(game, moves)
-    if (safeMove) return safeMove
+    // Play the move to reach next turn with the most material
+    const materialMove = findBestMaterialMove(game, moves)
+    if (materialMove) return materialMove
 
     // Just play a move
     return findRandomMove(moves)
