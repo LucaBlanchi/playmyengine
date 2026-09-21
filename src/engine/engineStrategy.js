@@ -72,9 +72,9 @@ function getMaterialScore(game, color) {
     }, 0)
 }
 
-function findBestMaterialMove(game, moves) {
+function filterBestMaterialMoves(game, moves) {
   if (moves.length === 0) {
-    return null
+    return []
   }
 
   const color = game.turn()
@@ -114,16 +114,9 @@ function findBestMaterialMove(game, moves) {
     ...evaluatedMoves.map(({ score }) => score)
   )
 
-  const bestMoves = evaluatedMoves.filter(
-    ({ score }) => score === bestScore
-  )
-
-  const selected =
-    bestMoves[
-      Math.floor(Math.random() * bestMoves.length)
-    ]
-
-  return toMove(selected.move)
+  return evaluatedMoves
+    .filter(({ score }) => score === bestScore)
+    .map(({ move }) => move)
 }
 
 function findRandomMove(moves) {
@@ -151,16 +144,15 @@ export function createEngineStrategy() {
     const mateMove = findMateInOne(game, moves)
     if (mateMove) return mateMove
 
-    // Avoid moves that hang mate in 1
+    // Avoid hanging mate in 1
     const safeMoves = filterMovesAvoidingMateInOne(game, moves)
-
-    if (safeMoves.length > 0) {
-      moves = safeMoves
+    if (safeMoves.length === 0) {
+      return findRandomMove(moves)
     }
+    moves = safeMoves
 
-    // Play the move to reach next turn with the most material
-    const materialMove = findBestMaterialMove(game, moves)
-    if (materialMove) return materialMove
+    // Consider moves that grant the most material next turn
+    moves = filterBestMaterialMoves(game, moves)
 
     // Just play a move
     return findRandomMove(moves)
