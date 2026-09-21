@@ -60,6 +60,30 @@ function findBestHangingCapture(game, moves) {
   )
 }
 
+function findBestCapture(moves) {
+  const capturePriority = ["q", "r", "b", "n", "p"]
+
+  const captures = moves.filter((move) => move.captured)
+
+  if (captures.length === 0) {
+    return null
+  }
+
+  const bestCapturedPiece = capturePriority.find((piece) =>
+    captures.some((move) => move.captured === piece)
+  )
+
+  const bestCaptures = captures.filter(
+    (move) => move.captured === bestCapturedPiece
+  )
+
+  return toMove(
+    bestCaptures[
+      Math.floor(Math.random() * bestCaptures.length)
+    ]
+  )
+}
+
 function findRandomMove(moves) {
   if (moves.length === 0) {
     return null
@@ -88,6 +112,10 @@ export function createEngineStrategy() {
     // Capture hanging pieces
     const hangingCapture = findBestHangingCapture(game, moves)
     if (hangingCapture) return hangingCapture
+
+    // Play a capture if available
+    const captureMove = findBestCapture(moves)
+    if (captureMove) return captureMove
 
     // Just play a move
     return findRandomMove(moves)
