@@ -1,0 +1,65 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  background: #f7f7f7;
+  color: #111;
+}
+
+button {
+  font: inherit;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 32px 16px;
+}
+
+.game {
+  width: min(100%, 640px);
+}
+
+.board {
+  width: 100%;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.controls button {
+  height: 44px;
+  border: 1px solid #d6d6d6;
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  cursor: pointer;
+}
+
+.controls button:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.new-game {
+  font-weight: 500;
+}
