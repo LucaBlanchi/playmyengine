@@ -46,11 +46,41 @@ export function createEngine({ startingFen, color }) {
   function chooseMove() {
     const moves = game.moves({ verbose: true })
 
+    // Should not happen
     if (moves.length === 0) {
       return null
     }
-
     console.log(state);
+
+    // Play forced moves
+    if (moves.length === 1) {
+      const move = moves[0]
+
+      return {
+        from: move.from,
+        to: move.to,
+        promotion: move.promotion
+      }
+    }
+
+    // Play mate in 1
+    for (const move of moves) {
+      game.move(move)
+
+      const isMate = game.isCheckmate()
+
+      game.undo()
+
+      if (isMate) {
+        return {
+          from: move.from,
+          to: move.to,
+          promotion: move.promotion
+        }
+      }
+    }
+
+    // Just play a random move
     const move = moves[Math.floor(Math.random() * moves.length)]
 
     return {
