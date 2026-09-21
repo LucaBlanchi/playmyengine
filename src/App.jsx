@@ -16,7 +16,9 @@ function createGame(startingFen = new Chess().fen()) {
   const playerColor = randomColor()
   const engineColor = oppositeColor(playerColor)
 
-  const strategy = createEngineStrategy()
+  const strategy = createEngineStrategy({
+    color: engineColor
+  })
 
   const engine = createEngine({
     startingFen,

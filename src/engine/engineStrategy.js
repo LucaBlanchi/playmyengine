@@ -107,6 +107,97 @@ function filterBestMaterialMoves(game, moves) {
     .map(({ move }) => move)
 }
 
+function isOpeningComplete(game, color) {
+  const history = game.history({ verbose: true })
+
+  const kingMoved = history.some(
+    (move) =>
+      move.color === color &&
+      move.piece === "k"
+  )
+
+  const knightSquares =
+    color === "w"
+      ? ["b1", "g1"]
+      : ["b8", "g8"]
+
+  const bishopSquares =
+    color === "w"
+      ? ["c1", "f1"]
+      : ["c8", "f8"]
+
+  const knightsDeveloped = knightSquares.every((square) => {
+    const piece = game.get(square)
+
+    return !(
+      piece &&
+      piece.color === color &&
+      piece.type === "n"
+    )
+  })
+
+  const bishopsDeveloped = bishopSquares.every((square) => {
+    const piece = game.get(square)
+
+    return !(
+      piece &&
+      piece.color === color &&
+      piece.type === "b"
+    )
+  })
+
+  return (
+    kingMoved &&
+    knightsDeveloped &&
+    bishopsDeveloped
+  )
+}
+
+function filterPreferredOpeningMoves(moves, color) {
+  const preferredMoves =
+    color === "w"
+      ? [
+          ["e2", "e4"],
+          ["d2", "d3"],
+          ["d2", "d4"],
+          ["g1", "f3"],
+          ["b1", "c3"],
+          ["c1", "d2"],
+          ["c1", "e3"],
+          ["c1", "f4"],
+          ["c1", "g5"],
+          ["f1", "e2"],
+          ["f1", "d3"],
+          ["f1", "c4"],
+          ["f1", "b5"],
+          ["e1", "g1"]
+        ]
+      : [
+          ["e7", "e5"],
+          ["d7", "d6"],
+          ["d7", "d5"],
+          ["g8", "f6"],
+          ["b8", "c6"],
+          ["c8", "d7"],
+          ["c8", "e6"],
+          ["c8", "f5"],
+          ["c8", "g4"],
+          ["f8", "e7"],
+          ["f8", "d6"],
+          ["f8", "c5"],
+          ["f8", "b4"],
+          ["e8", "g8"]
+        ]
+
+  return moves.filter((move) =>
+    preferredMoves.some(
+      ([from, to]) =>
+        move.from === from &&
+        move.to === to
+    )
+  )
+}
+
 function findRandomMove(moves) {
   if (moves.length === 0) {
     return null
@@ -118,30 +209,40 @@ function findRandomMove(moves) {
   return toMove(move)
 }
 
-export function createEngineStrategy() {
-  const state = {}
+export function createEngineStrategy({ color }) {
+  const state = {
+    opening: true
+  }
 
   function chooseMove(game) {
     let moves = game.moves({ verbose: true })
 
-    // Play forced moves
     if (moves.length === 1) return toMove(moves[0])
 
-    // Play mate in 1
     const mateMove = findMateInOne(game, moves)
     if (mateMove) return mateMove
 
-    // Avoid hanging mate in 1
     const safeMoves = filterMovesAvoidingMateInOne(game, moves)
     if (safeMoves.length === 0) {
       return findRandomMove(moves)
     }
+
     moves = safeMoves
 
-    // Consider moves that grant the most material next turn
     moves = filterBestMaterialMoves(game, moves)
 
-    // Just play a move
+    if (state.opening && isOpeningComplete(game, color)) {
+      state.opening = false
+    }
+
+    if (state.opening) {
+      const preferredMoves = filterPreferredOpeningMoves(moves, color)
+
+      if (preferredMoves.length > 0) {
+        moves = preferredMoves
+      }
+    }
+
     return findRandomMove(moves)
   }
 
