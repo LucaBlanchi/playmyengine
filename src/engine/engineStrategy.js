@@ -28,38 +28,36 @@ function findMateInOne(game, moves) {
   return null
 }
 
-function findBestCapture(moves) {
-  const pieceCapturePriority = {
-    q: 5,
-    r: 4,
-    b: 3,
-    n: 2,
-    p: 1
-  }
+function findBestHangingCapture(game, moves) {
+  const capturePriority = ["q", "r", "b", "n", "p"]
 
-  const captures = moves.filter((move) => move.captured)
+  const opponentColor = game.turn() === "w" ? "b" : "w"
 
-  if (captures.length === 0) {
+  const hangingCaptures = moves.filter((move) => {
+    if (!move.captured) {
+      return false
+    }
+
+    return game.attackers(move.to, opponentColor).length === 0
+  })
+
+  if (hangingCaptures.length === 0) {
     return null
   }
 
-  const bestValue = Math.max(
-    ...captures.map(
-      (move) => pieceCapturePriority[move.captured]
-    )
+  const bestCapturedPiece = capturePriority.find((piece) =>
+    hangingCaptures.some((move) => move.captured === piece)
   )
 
-  const bestCaptures = captures.filter(
-    (move) =>
-      pieceCapturePriority[move.captured] === bestValue
+  const bestCaptures = hangingCaptures.filter(
+    (move) => move.captured === bestCapturedPiece
   )
 
-  const move =
+  return toMove(
     bestCaptures[
       Math.floor(Math.random() * bestCaptures.length)
     ]
-
-  return toMove(move)
+  )
 }
 
 function findRandomMove(moves) {
@@ -87,9 +85,9 @@ export function createEngineStrategy() {
     const mateMove = findMateInOne(game, moves)
     if (mateMove) return mateMove
 
-    // Play capture if available
-    const captureMove = findBestCapture(moves)
-    if (captureMove) return captureMove
+    // Capture hanging pieces
+    const hangingCapture = findBestHangingCapture(game, moves)
+    if (hangingCapture) return hangingCapture
 
     // Just play a move
     return findRandomMove(moves)
