@@ -14,14 +14,6 @@ const pieceValue = {
   q: 9
 }
 
-function findForcedMove(moves) {
-  if (moves.length !== 1) {
-    return null
-  }
-
-  return toMove(moves[0])
-}
-
 function findMateInOne(game, moves) {
   for (const move of moves) {
     game.move(move)
@@ -137,8 +129,7 @@ export function createEngineStrategy() {
     let moves = game.moves({ verbose: true })
 
     // Play forced moves
-    const forcedMove = findForcedMove(moves)
-    if (forcedMove) return forcedMove
+    if (moves.length === 1) return toMove(moves[0])
 
     // Play mate in 1
     const mateMove = findMateInOne(game, moves)
