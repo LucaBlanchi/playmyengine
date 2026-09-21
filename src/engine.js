@@ -41,16 +41,8 @@ export function createEngine({ startingFen, color }) {
     return playMove()
   }
 
-  const state = {};
-
   function chooseMove() {
     const moves = game.moves({ verbose: true })
-
-    // Should not happen
-    if (moves.length === 0) {
-      return null
-    }
-    console.log(state);
 
     // Play forced moves
     if (moves.length === 1) {
