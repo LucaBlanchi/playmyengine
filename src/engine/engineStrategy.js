@@ -217,24 +217,28 @@ export function createEngineStrategy({ color }) {
   function chooseMove(game) {
     let moves = game.moves({ verbose: true })
 
+    // Play forced moves
     if (moves.length === 1) return toMove(moves[0])
 
+    // Play mate in 1
     const mateMove = findMateInOne(game, moves)
     if (mateMove) return mateMove
 
+    // Avoid hanging mate in 1
     const safeMoves = filterMovesAvoidingMateInOne(game, moves)
     if (safeMoves.length === 0) {
       return findRandomMove(moves)
     }
-
     moves = safeMoves
 
+    // Keep moves with the best worst-case material outcome
+    // TODO: this is clanky and artificial
     moves = filterBestMaterialMoves(game, moves)
 
+    // Develop pieces in the opening
     if (state.opening && isOpeningComplete(game, color)) {
       state.opening = false
     }
-
     if (state.opening) {
       const preferredMoves = filterPreferredOpeningMoves(moves, color)
 
@@ -243,6 +247,7 @@ export function createEngineStrategy({ color }) {
       }
     }
 
+    // Just play a move
     return findRandomMove(moves)
   }
 
