@@ -1,11 +1,3 @@
-const pieceCapturePriority = {
-  q: 5,
-  r: 4,
-  b: 3,
-  n: 2,
-  p: 1
-}
-
 function toMove(move) {
   return {
     from: move.from,
@@ -37,6 +29,14 @@ function findMateInOne(game, moves) {
 }
 
 function findBestCapture(moves) {
+  const pieceCapturePriority = {
+    q: 5,
+    r: 4,
+    b: 3,
+    n: 2,
+    p: 1
+  }
+
   const captures = moves.filter((move) => move.captured)
 
   if (captures.length === 0) {
@@ -79,15 +79,19 @@ export function createEngineStrategy() {
   function chooseMove(game) {
     const moves = game.moves({ verbose: true })
 
+    // Play forced moves
     const forcedMove = findForcedMove(moves)
     if (forcedMove) return forcedMove
 
+    // Play mate in 1
     const mateMove = findMateInOne(game, moves)
     if (mateMove) return mateMove
 
+    // Play capture if available
     const captureMove = findBestCapture(moves)
     if (captureMove) return captureMove
 
+    // Just play a move
     return findRandomMove(moves)
   }
 
