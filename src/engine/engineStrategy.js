@@ -100,7 +100,29 @@ function findBestCapture(moves) {
   )
 }
 
-function findDontHangMaterialMove(game, moves) {
+function filterMovesAvoidingMateInOne(game, moves) {
+  return moves.filter((move) => {
+    game.move(move)
+
+    const opponentMoves = game.moves({ verbose: true })
+
+    const allowsMateInOne = opponentMoves.some((opponentMove) => {
+      game.move(opponentMove)
+
+      const isMate = game.isCheckmate()
+
+      game.undo()
+
+      return isMate
+    })
+
+    game.undo()
+
+    return !allowsMateInOne
+  })
+}
+
+function findMovesThatDontHangMaterial(game, moves) {
 
   function getCaptureLoss(game, capture) {
     const capturedValue = pieceValue[capture.captured]
@@ -190,7 +212,7 @@ export function createEngineStrategy() {
   const state = {}
 
   function chooseMove(game) {
-    const moves = game.moves({ verbose: true })
+    let moves = game.moves({ verbose: true })
 
     // Play forced moves
     const forcedMove = findForcedMove(moves)
@@ -208,8 +230,15 @@ export function createEngineStrategy() {
     const captureMove = findBestCapture(moves)
     if (captureMove) return captureMove
 
+    // Avoid moves that hange mate in 1
+    const safeMoves = filterMovesAvoidingMateInOne(game, moves);
+    if (safeMoves.length === 0) {
+      return findRandomMove(moves)
+    }
+    moves = safeMoves;
+
     // Play a move that avoids losing material from having a piece captured
-    const safeMove = findDontHangMaterialMove(game, moves)
+    const safeMove = findMovesThatDontHangMaterial(game, moves)
     if (safeMove) return safeMove
 
     // Just play a move
