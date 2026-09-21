@@ -61,20 +61,35 @@ function findBestHangingCapture(game, moves) {
 }
 
 function findBestCapture(moves) {
-  const capturePriority = ["q", "r", "b", "n", "p"]
+  const pieceValue = {
+    p: 1,
+    n: 3,
+    b: 3,
+    r: 5,
+    q: 9
+  }
 
-  const captures = moves.filter((move) => move.captured)
+  const captures = moves.filter(
+    (move) =>
+      move.captured &&
+      pieceValue[move.piece] <= pieceValue[move.captured]
+  )
 
   if (captures.length === 0) {
     return null
   }
 
-  const bestCapturedPiece = capturePriority.find((piece) =>
-    captures.some((move) => move.captured === piece)
+  const bestDifference = Math.max(
+    ...captures.map(
+      (move) =>
+        pieceValue[move.captured] - pieceValue[move.piece]
+    )
   )
 
   const bestCaptures = captures.filter(
-    (move) => move.captured === bestCapturedPiece
+    (move) =>
+      pieceValue[move.captured] - pieceValue[move.piece] ===
+      bestDifference
   )
 
   return toMove(
@@ -113,7 +128,7 @@ export function createEngineStrategy() {
     const hangingCapture = findBestHangingCapture(game, moves)
     if (hangingCapture) return hangingCapture
 
-    // Play a capture if available
+    // Capture if the material trade is not bad
     const captureMove = findBestCapture(moves)
     if (captureMove) return captureMove
 
